@@ -1,0 +1,837 @@
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+
+const apiKey = ""; 
+const modelName = "gemini-2.5-flash-preview-09-2025";
+const STORAGE_KEY = 'rubricon_db_v6_executive';
+
+const OA_MAP = {
+    "5b": "OA 01: Crear diseños de objetos tecnológicos para resolver problemas, desde su representación gráfica hasta la planificación de recursos y un proceso de construcción sencillo pero riguroso.",
+    "6b": "OA 02: Planificar la elaboración de objetos o sistemas tecnológicos incorporando secuencias de acciones y selección de materiales, junto con el uso de herramientas de software.",
+    "7b": "OA 03: Elaborar un producto tecnológico para resolver problemas o aprovechar oportunidades, seleccionando materiales y herramientas adecuadas, y aplicando técnicas de fabricación.",
+    "8b": "OA 04: Comunicar el diseño, la planificación y los resultados de procesos de creación técnica mediante informes, presentaciones u otros medios, evaluando la calidad del producto final.",
+    "1m": "OA 05: Evaluar soluciones tecnológicas existentes, considerando criterios de eficiencia, sustentabilidad y ética, y proponer mejoras que respondan a necesidades detectadas.",
+    "2m": "OA 06: Proyectar soluciones tecnológicas integrales que respondan a necesidades locales y globales, integrando diversas disciplinas y gestionando de forma eficiente los recursos."
+};
+
+const Icons = {
+    Plus: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4"/></svg>,
+    Book: () => <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>,
+    Award: () => <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-1.947 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946 1.947 3.42 3.42 0 010 4.438 3.42 3.42 0 00-1.946 1.946 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-1.946 3.42 3.42 0 010-4.438z"/></svg>,
+    ChevronRight: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7"/></svg>,
+    Trash: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>,
+    ArrowLeft: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>,
+    Printer: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4H7v4a2 2 0 002 2zM9 9h6v4H9V9z"/></svg>,
+    Zap: () => <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path d="M11 3a1 1 0 10-2 0v1a1 1 0 102 0V3zM15.657 5.757a1 1 0 00-1.414-1.414l-.707.707a1 1 0 001.414 1.414l.707-.707zM18 10a1 1 0 01-1 1h-1a1 1 0 110-2h1a1 1 0 011 1zM5.05 6.464A1 1 0 106.464 5.05l-.707-.707a1 1 0 00-1.414 1.414l.707.707zM5 10a1 1 0 01-1 1H3a1 1 0 110-2h1a1 1 0 011 1zM8 16v-1a1 1 0 112 0v1a1 1 0 11-2 0zM13.464 15.05a1 1 0 011.414-1.414l.707.707a1 1 0 01-1.414 1.414l-.707-.707zM11 8a3 3 0 11-6 0 3 3 0 016 0z"/></svg>,
+    History: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>,
+    Edit: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>,
+    CheckCircle: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>,
+    Loader: () => <svg className="w-5 h-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/></svg>,
+    X: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"/></svg>,
+    TrendingUp: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>,
+    AlertCircle: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>,
+    FileText: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>,
+    GraduationCap: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 14l9-5-9-5-9 5 9 5z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 14v7"/></svg>
+};
+
+const calculateGrade = (score, maxScore, exigency = 0.6, minGrade = 1.0) => {
+    if (maxScore === 0) return minGrade.toFixed(1);
+    const passingScore = maxScore * exigency;
+    let grade = score < passingScore ? ((4.0 - minGrade) * (score / passingScore) + minGrade) : (3.0 * ((score - passingScore) / (maxScore - passingScore)) + 4.0);
+    return Math.max(minGrade, Math.min(7.0, grade)).toFixed(1);
+};
+
+const defaultAgileRubric = {
+    id: "seed-agile-001",
+    title: "Desafío Rápido: Prototipado 3D",
+    level: "7b",
+    type: "agile",
+    evaluations: [],
+    data: [
+        { id: "a1", category: "Proceso", indicator: "Uso de Normas de Seguridad", levels: [{points: 1, label: "Sí", desc: "Observado"}, {points: 0, label: "No", desc: "No observado"}] },
+        { id: "a2", category: "Proceso", indicator: "Trabajo Colaborativo", levels: [{points: 1, label: "Sí", desc: "Observado"}, {points: 0, label: "No", desc: "No observado"}] },
+        { id: "a3", category: "Técnico", indicator: "Escalado Correcto", levels: [{points: 1, label: "Sí", desc: "Observado"}, {points: 0, label: "No", desc: "No observado"}] },
+        { id: "a4", category: "Técnico", indicator: "Estabilidad de Pieza", levels: [{points: 1, label: "Sí", desc: "Observado"}, {points: 0, label: "No", desc: "No observado"}] },
+        { id: "a5", category: "Técnico", indicator: "Acabado de Superficie", levels: [{points: 1, label: "Sí", desc: "Observado"}, {points: 0, label: "No", desc: "No observado"}] },
+        { id: "a6", category: "Actitud", indicator: "Limpieza del Puesto", levels: [{points: 1, label: "Sí", desc: "Observado"}, {points: 0, label: "No", desc: "No observado"}] },
+        { id: "a7", category: "Actitud", indicator: "Cumplimiento del Tiempo", levels: [{points: 1, label: "Sí", desc: "Observado"}, {points: 0, label: "No", desc: "No observado"}] }
+    ]
+};
+
+const defaultProjectRubric = {
+    id: "seed-project-001",
+    title: "Proyecto Energía Eólica (MacGyver)",
+    level: "1m",
+    type: "project",
+    evaluations: [],
+    data: Array.from({length: 20}, (_, i) => ({
+        id: `p${i}`,
+        category: i < 4 ? "Conceptos" : i < 8 ? "Diseño" : i < 14 ? "Construcción" : i < 18 ? "Funcionamiento" : "Actitudes",
+        indicator: `Indicador Técnico #${i+1}: ${["Concepto de fuerza motriz", "Transformación de energía", "Variables físicas", "Bitácora de diseño", "Esquema técnico", "Selección de materiales", "Eficiencia de recursos", "Calidad de ejes", "Estabilidad de base", "Acoplamiento de aspas", "Simetría estructural", "Uso de herramientas", "Terminaciones", "Optimización de peso", "Arranque de giro", "Capacidad de izaje", "Altura alcanzada", "Resolución de fallas", "Trabajo en equipo", "Orden y Seguridad"][i]}`,
+        levels: [
+            {points: 3, label: "Logrado", desc: "Cumple con excelencia técnica."},
+            {points: 2, label: "En Proceso", desc: "Cumple parcialmente o requiere ajustes."},
+            {points: 1, label: "Inicial", desc: "Aún no demuestra el desempeño."}
+        ]
+    }))
+};
+
+async function callGemini(prompt, systemPrompt) {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            systemInstruction: { parts: [{ text: systemPrompt }] },
+            generationConfig: { 
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: "OBJECT",
+                    properties: {
+                        rubric: {
+                            type: "ARRAY",
+                            items: {
+                                type: "OBJECT",
+                                properties: {
+                                    category: { type: "STRING" },
+                                    indicator: { type: "STRING" },
+                                    levels: {
+                                        type: "ARRAY",
+                                        items: {
+                                            type: "OBJECT",
+                                            properties: {
+                                                points: { type: "NUMBER" },
+                                                label: { type: "STRING" },
+                                                desc: { type: "STRING" }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        })
+    });
+    const data = await response.json();
+    return JSON.parse(data.candidates[0].content.parts[0].text);
+}
+
+export default function App() {
+    const [view, setView] = useState('home');
+    const [templates, setTemplates] = useState(() => {
+        const saved = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEY) : null;
+        if (saved) {
+            const parsed = JSON.parse(saved);
+            const hasAgile = parsed.some(t => t.id === defaultAgileRubric.id);
+            const hasProject = parsed.some(t => t.id === defaultProjectRubric.id);
+            let final = parsed;
+            if (!hasAgile) final = [defaultAgileRubric, ...final];
+            if (!hasProject) final = [defaultProjectRubric, ...final];
+            return final;
+        }
+        return [defaultProjectRubric, defaultAgileRubric];
+    });
+    const [activeRubric, setActiveRubric] = useState(null);
+    
+    // Estados del Creador IA
+    const [isGenerating, setIsGenerating] = useState(false);
+    const [form, setForm] = useState({ title: '', desc: '', level: '5b', oa: '', type: 'project', fileText: '' });
+    const fileRef = useRef(null);
+
+    // Estados de Evaluación y Post-Evaluación
+    const [evalData, setEvalData] = useState({ student: '', course: '', scores: {}, currentIndex: 0, isDone: false, editId: null });
+    const [lastReport, setLastReport] = useState(null);
+    const [autoPrintPending, setAutoPrintPending] = useState(false);
+    const sidebarRef = useRef([]);
+    const isPrintingRef = useRef(false); 
+
+    // Cargar motor PDF globalmente
+    useEffect(() => {
+        if (typeof window !== 'undefined' && !window.html2pdf) {
+            const script = document.createElement('script');
+            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+            script.async = true;
+            document.head.appendChild(script);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(templates));
+        }
+    }, [templates]);
+
+    // Función de exportación a PDF estabilizada
+    const printPDF = useCallback(() => {
+        if (isPrintingRef.current) return; 
+        
+        const element = document.getElementById('pdf-render');
+        if (!element) return;
+        if (!window.html2pdf) {
+            alert("El motor de PDF aún se está cargando. Por favor, intenta en un momento.");
+            return;
+        }
+
+        isPrintingRef.current = true; 
+        setTimeout(() => { isPrintingRef.current = false; }, 2000); 
+
+        const opt = {
+            margin: 0, 
+            filename: `Reporte_${lastReport?.student?.replace(/\s+/g, '_') || 'Rubric'}.pdf`,
+            jsPDF: { unit: 'mm', format: 'letter', orientation: 'portrait' },
+            html2canvas: { scale: 2.5, useCORS: true, letterRendering: true }
+        };
+        window.html2pdf().from(element).set(opt).save();
+    }, [lastReport]);
+
+    // Auto-scroll en la barra lateral del evaluador
+    useEffect(() => {
+        if (view === 'evaluator' && sidebarRef.current[evalData.currentIndex]) {
+            sidebarRef.current[evalData.currentIndex].scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }, [evalData.currentIndex, view]);
+
+    // Atajos de teclado: Evaluador
+    useEffect(() => {
+        if (view !== 'evaluator' || evalData.isDone || !activeRubric) return;
+        
+        const handleKey = (e) => {
+            const currentInd = activeRubric.data[evalData.currentIndex];
+            if (!currentInd) return;
+
+            let validScoreKey = false;
+            if (activeRubric.type === 'project') {
+                if (['1','2','3'].includes(e.key)) {
+                    setEvalScore(currentInd.id, parseInt(e.key));
+                    validScoreKey = true;
+                }
+            } else {
+                if (e.key === '1') { setEvalScore(currentInd.id, 1); validScoreKey = true; }
+                if (e.key === '2') { setEvalScore(currentInd.id, 0); validScoreKey = true; }
+            }
+
+            if (validScoreKey) {
+                e.preventDefault();
+                setTimeout(nextIndicator, 150);
+            }
+            
+            if ((e.key === 'Enter' || e.key === ' ') && evalData.scores[currentInd.id] !== undefined) {
+                e.preventDefault();
+                nextIndicator();
+            }
+        };
+        window.addEventListener('keydown', handleKey);
+        return () => window.removeEventListener('keydown', handleKey);
+    }, [view, evalData, activeRubric]);
+
+    // Atajos de teclado: Reporte Final
+    useEffect(() => {
+        if (view === 'report') {
+            let canAcceptKeys = false;
+            const unlockTimer = setTimeout(() => { canAcceptKeys = true; }, 500); 
+
+            const handleReportKeys = (e) => {
+                if (!canAcceptKeys) return; 
+
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    printPDF();
+                } else if (e.key === ' ') {
+                    e.preventDefault();
+                    startEval(activeRubric); 
+                } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    setView('history');
+                }
+            };
+            window.addEventListener('keydown', handleReportKeys);
+            return () => {
+                window.removeEventListener('keydown', handleReportKeys);
+                clearTimeout(unlockTimer);
+            };
+        }
+    }, [view, activeRubric, printPDF]);
+
+    // Lógica robusta para Auto-Impresión (Descarga)
+    useEffect(() => {
+        if (view === 'report' && autoPrintPending) {
+            const timer = setTimeout(() => {
+                printPDF();
+                setAutoPrintPending(false);
+            }, 800); 
+            return () => clearTimeout(timer);
+        }
+    }, [view, autoPrintPending, printPDF]);
+
+    const nextIndicator = () => {
+        setEvalData(p => {
+            if (p.currentIndex < activeRubric.data.length - 1) return { ...p, currentIndex: p.currentIndex + 1 };
+            return { ...p, isDone: true };
+        });
+    };
+
+    const setEvalScore = (id, pts) => setEvalData(p => ({ ...p, scores: { ...p.scores, [id]: pts } }));
+
+    const handleFile = (e) => {
+        const f = e.target.files[0];
+        if (!f) return;
+        const r = new FileReader();
+        r.onload = (ev) => setForm(p => ({ ...p, fileText: ev.target.result }));
+        r.readAsText(f);
+    };
+
+    const generateIA = async () => {
+        if (!form.title) return;
+        setIsGenerating(true);
+        const isAgile = form.type === 'agile';
+        const sys = `Eres un experto curriculista de Tecnología en Chile. 
+        Si el tipo es PROYECTO: Genera 20 indicadores detallados divididos por categorías. Usa 3 niveles: Logrado (3), En Proceso (2), Inicial (1).
+        Si el tipo es ÁGIL: Genera exactamente 7 indicadores de observación directa. Usa 2 niveles: Sí (1), No (0).`;
+        const promptText = `Generar rúbrica ${isAgile ? 'ÁGIL de 7' : 'PROYECTO de 20'} para: ${form.title}. Contexto: ${form.desc}. Ref: ${form.fileText}`;
+        
+        try {
+            const res = await callGemini(promptText, sys);
+            const newTpl = {
+                id: Date.now().toString(),
+                ...form,
+                data: res.rubric.map((r, i) => ({ ...r, id: `i-${i}` })),
+                evaluations: []
+            };
+            setTemplates(p => [newTpl, ...p]);
+            setView('home');
+            setForm({ title: '', desc: '', level: '5b', oa: '', type: 'project', fileText: '' });
+        } catch (e) { alert("Error: " + e.message); }
+        finally { setIsGenerating(false); }
+    };
+
+    const startEval = (tpl, existingEval = null) => {
+        setActiveRubric(tpl);
+        if (existingEval) {
+            setEvalData({ student: existingEval.student, course: existingEval.course, scores: existingEval.detail, currentIndex: 0, isDone: false, editId: existingEval.id });
+        } else {
+            setEvalData({ student: '', course: '', scores: {}, currentIndex: 0, isDone: false, editId: null });
+        }
+        setView('evaluator');
+    };
+
+    const finalizeEval = (triggerAutoPrint = false) => {
+        const max = activeRubric.data.length * (activeRubric.type === 'project' ? 3 : 1);
+        const score = Object.values(evalData.scores).reduce((a,b) => a+b, 0);
+        const minGrade = activeRubric.type === 'agile' ? 3.0 : 1.0;
+        const exigency = activeRubric.type === 'agile' ? 0.5 : 0.6;
+        const grade = calculateGrade(score, max, exigency, minGrade);
+        
+        const analysis = activeRubric.data.map(ind => {
+            const maxPts = Math.max(...ind.levels.map(l => l.points));
+            return {
+                ...ind,
+                score: evalData.scores[ind.id] || 0,
+                percentage: ((evalData.scores[ind.id] || 0) / maxPts) * 100
+            };
+        }).sort((a, b) => b.percentage - a.percentage);
+
+        const evaluationResult = {
+            id: evalData.editId || Date.now().toString(),
+            student: evalData.student || "Estudiante",
+            course: evalData.course || "N/A",
+            score, max, grade,
+            detail: evalData.scores,
+            top: analysis.slice(0, 3),
+            low: analysis.slice(-3).reverse(),
+            date: new Date().toLocaleDateString()
+        };
+
+        setTemplates(p => p.map(t => {
+            if (t.id === activeRubric.id) {
+                const evaluations = t.evaluations || [];
+                if (evalData.editId) {
+                    return { ...t, evaluations: evaluations.map(e => e.id === evalData.editId ? evaluationResult : e) };
+                } else {
+                    return { ...t, evaluations: [evaluationResult, ...evaluations] };
+                }
+            }
+            return t;
+        }));
+
+        setLastReport({ rubric: activeRubric, ...evaluationResult });
+        setView('report');
+        if(triggerAutoPrint) setAutoPrintPending(true);
+    };
+
+    const deleteEvaluation = (rubricId, evalId) => {
+        if (!window.confirm("¿Eliminar este registro de forma permanente?")) return;
+        setTemplates(p => {
+            const newTpls = p.map(t => {
+                if (t.id === rubricId) {
+                    return { ...t, evaluations: (t.evaluations || []).filter(e => e.id !== evalId) };
+                }
+                return t;
+            });
+            if (activeRubric && activeRubric.id === rubricId) {
+                setActiveRubric(newTpls.find(t => t.id === rubricId));
+            }
+            return newTpls;
+        });
+    };
+
+    // Cálculos de puntaje en vivo
+    const getCurrentEvalStats = () => {
+        if (!activeRubric) return { currentPoints: 0, maxPoints: 0, liveGrade: "1.0" };
+        const currentPoints = Object.values(evalData.scores).reduce((a, b) => a + b, 0);
+        const maxPoints = activeRubric.data.length * (activeRubric.type === 'project' ? 3 : 1);
+        const minGrade = activeRubric.type === 'agile' ? 3.0 : 1.0;
+        const exigency = activeRubric.type === 'agile' ? 0.5 : 0.6;
+        const liveGrade = calculateGrade(currentPoints, maxPoints, exigency, minGrade);
+        return { currentPoints, maxPoints, liveGrade };
+    };
+
+    return (
+        <div className="font-sans text-slate-800 bg-slate-50 min-h-screen">
+            <style>{`
+                .sidebar-scroll::-webkit-scrollbar { width: 6px; }
+                .sidebar-scroll::-webkit-scrollbar-track { background: transparent; }
+                .sidebar-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+                .pdf-page { width: 215.9mm; min-height: 279.4mm; background: white; margin: 0 auto; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+            `}</style>
+
+            {/* VISTA HOME */}
+            {view === 'home' && (
+                <div className="min-h-screen">
+                    <div className="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 text-white py-20 px-8 shadow-2xl relative overflow-hidden">
+                        <div className="absolute inset-0 opacity-20 bg-[linear-gradient(rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.05)_1px,transparent_1px)]" style={{backgroundSize: '30px 30px'}}></div>
+                        <div className="absolute top-0 left-1/4 w-96 h-96 bg-indigo-500 rounded-full mix-blend-multiply filter blur-[128px] opacity-40 animate-pulse"></div>
+                        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-emerald-500 rounded-full mix-blend-multiply filter blur-[128px] opacity-20"></div>
+                        
+                        <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8 relative z-10">
+                            <div className="text-center md:text-left">
+                                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 border border-white/20 backdrop-blur-sm mb-6 shadow-sm">
+                                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                                    <span className="text-[10px] font-black tracking-widest uppercase text-indigo-100">Sistema Curricular Activo</span>
+                                </div>
+                                <h1 className="text-6xl md:text-7xl font-black mb-4 tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-white to-indigo-200">RubriCon Hub</h1>
+                                <p className="text-indigo-200/80 text-sm md:text-base font-bold uppercase tracking-widest max-w-xl leading-relaxed">
+                                    Gestión inteligente de rúbricas, evaluación fluida en tiempo real y analítica institucional de alto rendimiento.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div className="max-w-6xl mx-auto p-8 -mt-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 relative z-20">
+                        <div onClick={() => setView('creator')} className="bg-white border-2 border-dashed border-indigo-200 rounded-[2.5rem] p-10 flex flex-col items-center justify-center text-center cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/50 transition-all group shadow-md min-h-[300px]">
+                            <div className="bg-gradient-to-br from-indigo-500 to-indigo-700 shadow-lg shadow-indigo-500/30 text-white p-5 rounded-2xl mb-5 group-hover:scale-110 group-hover:rotate-3 transition-all"><Icons.Plus /></div>
+                            <h3 className="text-2xl font-black text-indigo-900 leading-tight">Nueva Rúbrica</h3>
+                            <p className="text-xs text-indigo-500 font-bold uppercase mt-2 tracking-widest">Crear Rápido con IA</p>
+                        </div>
+
+                        {templates.map(t => (
+                            <div key={t.id} className={`bg-white border rounded-[2.5rem] p-8 shadow-sm hover:shadow-xl transition-all relative group flex flex-col ${t.id.startsWith('seed') ? 'border-indigo-100 bg-indigo-50/10' : 'border-slate-200'}`}>
+                                <div className="flex justify-between items-start mb-6">
+                                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-sm ${t.type === 'project' ? 'bg-indigo-100 text-indigo-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                                        {t.type === 'project' ? <Icons.Book /> : <Icons.Zap />}
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <button onClick={() => {setActiveRubric(t); setView('history')}} className="p-2 bg-slate-50 text-slate-400 hover:text-indigo-600 rounded-xl transition shadow-sm border border-slate-100"><Icons.History/></button>
+                                        {!t.id.startsWith('seed') && <button onClick={(e) => { e.stopPropagation(); if(window.confirm("¿Eliminar esta rúbrica de forma permanente?")) setTemplates(p => p.filter(x => x.id !== t.id)); }} className="p-2 bg-slate-50 text-slate-400 hover:text-rose-600 rounded-xl transition shadow-sm border border-slate-100"><Icons.Trash /></button>}
+                                    </div>
+                                </div>
+                                <h3 className="font-black text-xl text-slate-800 mb-2 leading-tight line-clamp-2">{t.title}</h3>
+                                <div className="flex items-center gap-2 mb-6 mt-1">
+                                    <span className="text-[10px] font-black text-slate-500 bg-slate-100 px-2 py-1 rounded-md uppercase tracking-widest">{t.level}</span>
+                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t.type === 'project' ? 'Proyecto' : 'Ágil'}</span>
+                                </div>
+                                <p className="text-xs font-bold text-slate-400 mb-6 flex items-center gap-2"><Icons.CheckCircle /> {t.evaluations?.length || 0} alumnos evaluados</p>
+                                <div className="mt-auto">
+                                    <button onClick={() => startEval(t)} className={`w-full py-4 rounded-xl font-black text-white transition flex items-center justify-center gap-3 shadow-md ${t.type === 'project' ? 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-600/20' : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/20'}`}>
+                                        Evaluar Estudiante <Icons.ChevronRight />
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* VISTA REGISTRO HISTÓRICO */}
+            {view === 'history' && (
+                <div className="min-h-screen bg-slate-50">
+                    <div className="bg-white border-b px-8 py-6 flex justify-between items-center sticky top-0 z-30 shadow-sm">
+                        <button onClick={() => setView('home')} className="flex items-center gap-2 text-slate-500 font-bold text-sm hover:text-indigo-600 transition">
+                            <Icons.ArrowLeft /> Volver al Hub
+                        </button>
+                        <h2 className="font-black text-xl tracking-tight text-slate-800 truncate px-4 max-w-2xl">Historial: {activeRubric?.title}</h2>
+                        <div className="w-24"></div>
+                    </div>
+                    <div className="max-w-5xl mx-auto p-10">
+                        <div className="bg-white rounded-[2rem] shadow-sm overflow-hidden border border-slate-200">
+                            <table className="w-full text-left">
+                                <thead className="bg-slate-50 border-b border-slate-200">
+                                    <tr className="text-[10px] font-black uppercase text-slate-400 tracking-widest">
+                                        <th className="px-8 py-5">Estudiante</th>
+                                        <th className="px-8 py-5">Curso</th>
+                                        <th className="px-8 py-5">Fecha</th>
+                                        <th className="px-8 py-5">Nota</th>
+                                        <th className="px-8 py-5 text-right">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {(activeRubric?.evaluations || []).length === 0 && (
+                                        <tr><td colSpan="5" className="px-8 py-20 text-center text-slate-400 font-medium italic">No hay evaluaciones registradas en esta rúbrica.</td></tr>
+                                    )}
+                                    {(activeRubric?.evaluations || []).map(e => (
+                                        <tr key={e.id} className="border-b border-slate-100 hover:bg-slate-50/80 transition">
+                                            <td className="px-8 py-5 font-black text-slate-800">{e.student}</td>
+                                            <td className="px-8 py-5 font-bold text-slate-500">{e.course}</td>
+                                            <td className="px-8 py-5 text-xs text-slate-400 font-mono">{e.date}</td>
+                                            <td className={`px-8 py-5 font-black text-xl ${parseFloat(e.grade) >= 4 ? 'text-emerald-600' : 'text-rose-600'}`}>{e.grade}</td>
+                                            <td className="px-8 py-5 text-right flex justify-end gap-2">
+                                                <button onClick={() => { setLastReport({rubric: activeRubric, ...e}); setView('report') }} className="p-2.5 bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-600 hover:text-white transition shadow-sm" title="Ver Reporte"><Icons.FileText/></button>
+                                                <button onClick={() => startEval(activeRubric, e)} className="p-2.5 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-900 hover:text-white transition shadow-sm" title="Editar"><Icons.Edit/></button>
+                                                <button onClick={() => deleteEvaluation(activeRubric.id, e.id)} className="p-2.5 bg-rose-50 text-rose-600 rounded-lg hover:bg-rose-600 hover:text-white transition shadow-sm" title="Eliminar"><Icons.Trash/></button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* VISTA CREADOR */}
+            {view === 'creator' && (
+                <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-8">
+                    <div className="max-w-2xl w-full bg-white rounded-[3rem] shadow-xl p-12 border border-slate-200">
+                        <button onClick={() => setView('home')} className="flex items-center gap-2 text-slate-400 font-black text-[10px] uppercase tracking-widest mb-10 hover:text-indigo-600 transition">
+                            <Icons.ArrowLeft /> Volver al Hub
+                        </button>
+                        <h2 className="font-black text-4xl tracking-tight text-slate-900 mb-8">Diseñador Curricular</h2>
+                        <div className="space-y-6">
+                            <div>
+                                <label className="block text-[10px] font-black uppercase text-slate-400 mb-2 tracking-widest px-1">Título de la Actividad</label>
+                                <input value={form.title} onChange={e => setForm({...form, title: e.target.value})} className="w-full p-5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:border-indigo-600 focus:bg-white font-bold text-lg transition-all" placeholder="Ej: Brazo Hidráulico con Jeringas" />
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label className="block text-[10px] font-black uppercase text-slate-400 mb-2 tracking-widest px-1">Tipo de Evaluación</label>
+                                    <div className="flex bg-slate-100 p-1.5 rounded-xl">
+                                        <button onClick={() => setForm({...form, type: 'project'})} className={`flex-1 py-3 rounded-lg text-xs font-black uppercase transition ${form.type === 'project' ? 'bg-white shadow-sm text-indigo-700' : 'text-slate-500 hover:text-slate-700'}`}>Proyecto (20)</button>
+                                        <button onClick={() => setForm({...form, type: 'agile'})} className={`flex-1 py-3 rounded-lg text-xs font-black uppercase transition ${form.type === 'agile' ? 'bg-white shadow-sm text-emerald-700' : 'text-slate-500 hover:text-slate-700'}`}>Ágil (7)</button>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-black uppercase text-slate-400 mb-2 tracking-widest px-1">Nivel Educativo</label>
+                                    <select value={form.level} onChange={e => setForm({...form, level: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl font-bold outline-none focus:border-indigo-600 focus:bg-white transition-all text-slate-700 text-sm">
+                                        <option value="5b">5° Básico</option><option value="6b">6° Básico</option><option value="7b">7° Básico</option><option value="8b">8° Básico</option><option value="1m">1° Medio</option><option value="2m">2° Medio</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-[10px] font-black uppercase text-slate-400 mb-2 tracking-widest px-1">Contexto o Descripción</label>
+                                <textarea value={form.desc} onChange={e => setForm({...form, desc: e.target.value})} rows="4" className="w-full p-5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:border-indigo-600 focus:bg-white font-medium text-sm transition-all" placeholder="Describe brevemente los objetivos para guiar a la IA..."></textarea>
+                            </div>
+                            <button onClick={() => fileRef.current.click()} className={`w-full py-4 rounded-2xl border-2 border-dashed font-black text-xs uppercase tracking-widest transition-all ${form.fileText ? 'bg-indigo-50 border-indigo-400 text-indigo-700' : 'bg-slate-50 border-slate-200 text-slate-400 hover:bg-slate-100'}`}>
+                                <input type="file" ref={fileRef} className="hidden" onChange={handleFile} />
+                                {form.fileText ? "✓ Documento Cargado" : "Adjuntar Pauta Referencial (Opcional)"}
+                            </button>
+                        </div>
+                        <button onClick={generateIA} disabled={isGenerating || !form.title} className="w-full py-6 mt-8 bg-slate-900 text-white rounded-2xl font-black text-lg shadow-lg flex items-center justify-center gap-3 disabled:opacity-50 hover:bg-indigo-700 transition-all active:scale-95">
+                            {isGenerating ? <><Icons.Loader /> Analizando Estructura...</> : <><Icons.Zap /> Generar Rúbrica con IA</>}
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* VISTA EVALUADOR */}
+            {view === 'evaluator' && activeRubric && activeRubric.data && (
+                <div className="h-screen bg-slate-50 flex flex-col">
+                    <div className="h-2 w-full bg-slate-200"><div className="h-full bg-indigo-600 transition-all duration-300" style={{width: `${((evalData.currentIndex + 1) / activeRubric.data.length) * 100}%`}} /></div>
+                    <div className="px-8 py-4 bg-white border-b border-slate-200 flex justify-between items-center z-10 shadow-sm">
+                        <div className="flex items-center gap-4">
+                            <span className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-md text-[10px] font-black tracking-widest">{evalData.currentIndex + 1} / {activeRubric.data.length}</span>
+                            <h2 className="text-lg font-black tracking-tight text-slate-800 truncate max-w-sm hidden lg:block">{activeRubric.title}</h2>
+                            <span className="hidden md:inline-block ml-4 text-[10px] font-mono text-slate-400 bg-slate-100 px-2 py-1 rounded border border-slate-200">
+                                Atajos: 1, 2, 3 | <span className="font-bold">Espacio</span> o <span className="font-bold">Enter</span>
+                            </span>
+                        </div>
+                        
+                        {/* RESULTADO PARCIAL EN VIVO */}
+                        {(() => {
+                            const stats = getCurrentEvalStats();
+                            return (
+                                <div className="flex items-center gap-3 bg-slate-50 px-4 py-1.5 rounded-xl border border-slate-200 shadow-sm">
+                                    <div className="flex flex-col text-right">
+                                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Puntaje Actual</span>
+                                        <span className="text-sm font-bold text-slate-800">{stats.currentPoints} <span className="text-xs text-slate-400">/ {stats.maxPoints} pts</span></span>
+                                    </div>
+                                    <div className="h-8 w-px bg-slate-200"></div>
+                                    <div className="flex flex-col text-right">
+                                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Proyección</span>
+                                        <span className={`text-sm font-black ${parseFloat(stats.liveGrade) >= 4.0 ? 'text-emerald-600' : 'text-rose-600'}`}>{stats.liveGrade}</span>
+                                    </div>
+                                </div>
+                            );
+                        })()}
+
+                        <button onClick={() => setView('home')} className="text-slate-400 hover:bg-slate-100 p-2 rounded-full transition ml-4"><Icons.X /></button>
+                    </div>
+                    <div className="flex-1 flex overflow-hidden">
+                        <div className="w-80 bg-white border-r border-slate-200 overflow-y-auto sidebar-scroll p-4 space-y-1 hidden md:block">
+                            {activeRubric.data.map((ind, idx) => {
+                                let statusColor = "bg-slate-100 text-slate-400 border-slate-200";
+                                const score = evalData.scores[ind.id];
+                                if (score !== undefined) {
+                                    if (activeRubric.type === 'project') {
+                                        if (score === 3) statusColor = "bg-emerald-500 text-white border-emerald-500";
+                                        else if (score === 2) statusColor = "bg-amber-500 text-white border-amber-500";
+                                        else statusColor = "bg-rose-500 text-white border-rose-500";
+                                    } else {
+                                        if (score === 1) statusColor = "bg-emerald-500 text-white border-emerald-500";
+                                        else statusColor = "bg-rose-500 text-white border-rose-500";
+                                    }
+                                }
+                                
+                                return (
+                                    <button key={idx} ref={el => sidebarRef.current[idx] = el} onClick={() => setEvalData(p=>({...p, currentIndex: idx}))} className={`w-full text-left p-3 rounded-xl flex items-center gap-3 transition-all ${evalData.currentIndex === idx ? 'bg-indigo-50 border border-indigo-200 shadow-sm' : 'hover:bg-slate-50 border border-transparent'}`}>
+                                        <span className={`w-6 h-6 rounded-full border flex items-center justify-center flex-shrink-0 text-[10px] font-black ${evalData.currentIndex === idx ? 'bg-indigo-600 text-white border-indigo-600' : statusColor}`}>
+                                            {score !== undefined ? <Icons.CheckCircle /> : idx + 1}
+                                        </span>
+                                        <span className={`text-[11px] leading-tight line-clamp-2 ${evalData.currentIndex === idx ? 'font-bold text-indigo-900' : 'text-slate-600 font-medium'}`}>{ind.indicator}</span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                        <div className="flex-1 p-8 lg:p-20 bg-slate-50 overflow-y-auto">
+                            {!evalData.isDone && activeRubric.data[evalData.currentIndex] ? (
+                                <div className="max-w-2xl mx-auto flex flex-col justify-center min-h-[60vh]">
+                                    <div className="mb-10 text-center">
+                                        <span className="inline-block px-4 py-1.5 bg-white border border-slate-200 text-slate-500 text-[10px] font-black uppercase rounded-lg mb-6 tracking-widest shadow-sm">{activeRubric.data[evalData.currentIndex].category}</span>
+                                        <h3 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tight leading-tight">{activeRubric.data[evalData.currentIndex].indicator}</h3>
+                                    </div>
+                                    <div className="grid grid-cols-1 gap-5">
+                                        {activeRubric.data[evalData.currentIndex].levels.map((lvl, idx) => {
+                                            const isSel = evalData.scores[activeRubric.data[evalData.currentIndex].id] === lvl.points;
+                                            return (
+                                                <button key={lvl.points} onClick={() => { setEvalScore(activeRubric.data[evalData.currentIndex].id, lvl.points); setTimeout(nextIndicator, 150); }} className={`w-full p-6 rounded-2xl border-2 text-left transition-all ${isSel ? (activeRubric.type === 'project' ? 'border-indigo-600 bg-indigo-50/50 shadow-md scale-[1.01]' : 'border-emerald-600 bg-emerald-50/50 shadow-md scale-[1.01]') : 'bg-white border-slate-200 hover:border-slate-300 shadow-sm'}`}>
+                                                    <div className="flex justify-between items-center mb-2">
+                                                        <span className={`text-lg font-black uppercase tracking-tight flex items-center gap-3 ${isSel ? 'text-slate-900' : 'text-slate-700'}`}>
+                                                            <span className={`w-7 h-7 rounded-md flex items-center justify-center font-mono text-xs ${isSel ? (activeRubric.type === 'project' ? 'bg-indigo-600 text-white' : 'bg-emerald-600 text-white') : 'bg-slate-100 text-slate-400'}`}>[{idx + 1}]</span>
+                                                            {lvl.label}
+                                                        </span>
+                                                        <span className={`text-[10px] font-black px-3 py-1 rounded-md ${isSel ? 'bg-white shadow-sm border border-slate-200' : 'bg-slate-50 text-slate-400 border border-slate-100'}`}>{lvl.points} PTS</span>
+                                                    </div>
+                                                    <p className={`text-sm font-medium leading-relaxed pl-10 ${isSel ? 'text-slate-800' : 'text-slate-500'}`}>{lvl.desc}</p>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="max-w-md mx-auto text-center py-10">
+                                    <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-inner"><Icons.CheckCircle /></div>
+                                    <h2 className="text-4xl font-black text-slate-900 mb-8 tracking-tight">{evalData.editId ? 'Edición Finalizada' : 'Evaluación Completa'}</h2>
+                                    <div className="space-y-5">
+                                        <div className="text-left">
+                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2">Estudiante</label>
+                                            <input autoFocus value={evalData.student} placeholder="Nombre completo" className="w-full mt-1 p-5 rounded-xl border border-slate-200 font-bold text-lg focus:border-indigo-600 shadow-sm outline-none transition-all bg-white" onChange={e => setEvalData(p=>({...p, student: e.target.value}))} onKeyDown={e => { if(e.key === 'Enter') { e.preventDefault(); finalizeEval(true); } }}/>
+                                        </div>
+                                        <div className="text-left">
+                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2">Curso / Nivel</label>
+                                            <input value={evalData.course} placeholder="Ej. 1° Medio B" className="w-full mt-1 p-5 rounded-xl border border-slate-200 font-bold text-lg focus:border-indigo-600 shadow-sm outline-none transition-all bg-white" onChange={e => setEvalData(p=>({...p, course: e.target.value}))} onKeyDown={e => { if(e.key === 'Enter') { e.preventDefault(); finalizeEval(true); } }} />
+                                        </div>
+                                        <button onClick={() => finalizeEval(true)} className="w-full bg-slate-900 text-white font-black py-6 rounded-xl shadow-lg hover:bg-indigo-600 active:scale-95 transition-all text-lg mt-8 tracking-tight flex items-center justify-center gap-2">
+                                            <Icons.FileText /> Generar Documento Oficial
+                                        </button>
+                                        <p className="text-xs text-slate-400 font-medium">Presiona <kbd className="bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded text-slate-600 font-mono">Enter</kbd> para generar y descargar automáticamente</p>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* VISTA REPORTE EJECUTIVO - ALTO IMPACTO */}
+            {view === 'report' && lastReport && (() => {
+                const gradeVal = parseFloat(lastReport.grade);
+                
+                let theme = {
+                    text: "text-rose-600", border: "border-rose-200", bg: "bg-rose-50",
+                    solid: "bg-rose-600", chart: "bg-rose-500", status: "NIVEL INICIAL",
+                    msg: "El estudiante requiere apoyo adicional para consolidar aprendizajes."
+                };
+                if (gradeVal >= 6.0) {
+                    theme = {
+                        text: "text-indigo-700", border: "border-indigo-200", bg: "bg-indigo-50",
+                        solid: "bg-indigo-700", chart: "bg-indigo-500", status: "NIVEL SOBRESALIENTE",
+                        msg: "El estudiante demuestra un dominio excepcional de los objetivos."
+                    };
+                } else if (gradeVal >= 4.0) {
+                    theme = {
+                        text: "text-emerald-700", border: "border-emerald-200", bg: "bg-emerald-50",
+                        solid: "bg-emerald-600", chart: "bg-emerald-500", status: "NIVEL SATISFACTORIO",
+                        msg: "El estudiante ha logrado los objetivos curriculares de forma adecuada."
+                    };
+                }
+
+                return (
+                    <div className="min-h-screen bg-slate-200 py-10 flex flex-col items-center overflow-y-auto relative">
+                        
+                        {/* BARRA DE ACCIÓN PRINCIPAL */}
+                        <div className="max-w-[215.9mm] w-full flex flex-col md:flex-row justify-between items-center gap-4 mb-8 bg-white p-4 rounded-2xl shadow-lg sticky top-4 z-50 border border-slate-200 no-print">
+                            <button onClick={() => setView('history')} className="px-5 py-2.5 text-slate-500 font-bold text-sm hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition flex items-center gap-2 group">
+                                <Icons.ArrowLeft /> Volver al Historial <span className="bg-slate-100 text-slate-400 group-hover:bg-white group-hover:text-indigo-400 px-2 py-0.5 rounded text-[10px] font-mono ml-2">Esc</span>
+                            </button>
+                            <div className="flex flex-wrap justify-center gap-3">
+                                <button onClick={() => startEval(activeRubric)} className="px-6 py-2.5 bg-indigo-50 text-indigo-700 font-black rounded-xl text-sm hover:bg-indigo-100 transition flex items-center gap-2 border border-indigo-200">
+                                    Nueva Evaluación <span className="bg-white text-indigo-600 px-2 py-0.5 rounded shadow-sm border border-indigo-100 text-xs font-mono ml-1">Espacio</span>
+                                </button>
+                                <button onClick={printPDF} className="px-6 py-2.5 bg-slate-900 text-white font-black rounded-xl text-sm shadow-md flex items-center gap-2 hover:bg-indigo-600 transition active:scale-95">
+                                    <Icons.Printer /> Descargar Informe <span className="bg-white/20 text-white px-2 py-0.5 rounded shadow-sm text-xs font-mono ml-1">Enter</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* DOCUMENTO PDF */}
+                        <div id="pdf-render" className="pdf-page flex flex-col">
+                            <div className="flex flex-col h-full p-8" style={{ pageBreakAfter: 'always' }}>
+                                <div className={`p-8 rounded-2xl mb-8 flex justify-between items-start border ${theme.bg} ${theme.border}`}>
+                                    <div className="max-w-md">
+                                        <p className={`text-[10px] font-black uppercase tracking-widest mb-2 flex items-center gap-2 ${theme.text}`}><Icons.Book /> Reporte Curricular</p>
+                                        <h1 className="text-3xl font-black text-slate-900 leading-tight tracking-tight">{lastReport.rubric.title}</h1>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="font-bold text-slate-600 text-sm">{lastReport.date}</p>
+                                        <p className="text-[9px] font-bold text-slate-400 mt-1 uppercase tracking-widest">Tecnología Chile</p>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-[1.5fr_1fr] gap-8 mb-8 items-stretch">
+                                    <div className="flex flex-col justify-between border border-slate-200 rounded-2xl p-8">
+                                        <div className="mb-6">
+                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-2"><Icons.Award /> Estudiante Evaluado</p>
+                                            <p className="text-4xl font-black text-slate-900 pl-6 leading-tight">{lastReport.student}</p>
+                                            <p className="text-lg font-bold text-slate-500 pl-6 mt-1">{lastReport.course}</p>
+                                        </div>
+                                        <div className="pt-6 border-t border-slate-100">
+                                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-2"><Icons.FileText /> Objetivo de Aprendizaje</p>
+                                            <p className="text-xs font-medium text-slate-600 leading-relaxed text-justify pl-6">
+                                                {OA_MAP[lastReport.rubric.level] || "Objetivo Curricular transversal definido para el nivel de Tecnología."}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div className={`rounded-2xl border flex flex-col items-center justify-center p-8 relative overflow-hidden ${theme.bg} ${theme.border}`}>
+                                        <p className={`text-[10px] font-black uppercase tracking-widest mb-2 z-10 ${theme.text}`}>Calificación Final</p>
+                                        <p className={`text-[8rem] font-black leading-none tracking-tighter z-10 ${theme.text}`}>{lastReport.grade}</p>
+                                        <div className="bg-white px-6 py-2 rounded-xl shadow-sm border border-white/50 mt-4 z-10">
+                                            <p className="font-bold text-slate-700 text-xl">{lastReport.score} <span className="text-slate-400 text-sm">/ {lastReport.max} pts</span></p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className={`p-4 rounded-xl border mb-8 flex items-center justify-center gap-4 border-slate-200 bg-white`}>
+                                    <span className={`px-3 py-1 text-[10px] font-black text-white rounded-md tracking-widest ${theme.solid}`}>{theme.status}</span>
+                                    <span className="text-sm font-medium text-slate-600">{theme.msg}</span>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-8 flex-1">
+                                    <div className="border border-slate-200 rounded-2xl p-6 flex flex-col">
+                                        <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100 text-emerald-600">
+                                            <Icons.TrendingUp /><span className="font-black uppercase tracking-widest text-xs text-slate-800">Principales Fortalezas</span>
+                                        </div>
+                                        <div className="space-y-6 flex-1">
+                                            {lastReport.top?.map((ind, i) => (
+                                                <div key={i} className="space-y-2">
+                                                    <div className="flex justify-between items-end">
+                                                        <span className="text-xs font-bold text-slate-700 leading-snug w-4/5 truncate">{ind.indicator}</span>
+                                                        <span className="text-[10px] font-black text-emerald-600">{ind.percentage.toFixed(0)}%</span>
+                                                    </div>
+                                                    <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                                                        <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${ind.percentage}%` }}></div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <div className="border border-slate-200 rounded-2xl p-6 flex flex-col">
+                                        <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100 text-rose-600">
+                                            <Icons.AlertCircle /><span className="font-black uppercase tracking-widest text-xs text-slate-800">Áreas de Mejora</span>
+                                        </div>
+                                        <div className="space-y-6 flex-1">
+                                            {lastReport.low?.map((ind, i) => (
+                                                <div key={i} className="space-y-2">
+                                                    <div className="flex justify-between items-end">
+                                                        <span className="text-xs font-bold text-slate-700 leading-snug w-4/5 truncate">{ind.indicator}</span>
+                                                        <span className="text-[10px] font-black text-rose-600">{ind.percentage.toFixed(0)}%</span>
+                                                    </div>
+                                                    <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                                                        <div className="h-full bg-rose-500 rounded-full" style={{ width: `${ind.percentage}%` }}></div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="mt-8 pt-4 border-t border-slate-200 flex justify-between items-center text-[8px] font-black text-slate-400 uppercase tracking-widest">
+                                    <p>Generado vía RubriCon Pro - Documento Oficial</p>
+                                    <p>Pág. 1 / 2</p>
+                                </div>
+                            </div>
+
+                            <div className="flex flex-col h-full p-8 break-inside-avoid">
+                                <div className="mb-8 text-center pb-6 border-b border-slate-200">
+                                    <h3 className="text-lg font-black text-slate-800 uppercase tracking-widest">Matriz Técnica de Evaluación</h3>
+                                    <p className="text-xs font-medium text-slate-500 mt-1">Desglose detallado de criterios observados en la actividad.</p>
+                                </div>
+                                
+                                <div className="space-y-3 flex-1">
+                                    {lastReport.rubric.data.map((ind, i) => {
+                                        const pts = lastReport.detail[ind.id];
+                                        const maxPts = Math.max(...ind.levels.map(l=>l.points));
+                                        const isProject = lastReport.rubric.type === 'project';
+                                        
+                                        let rowBg = "bg-white", rowBorder = "border-slate-200", badgeClass = "bg-slate-100 text-slate-400 border-slate-200", textHighlight = "text-slate-500";
+                                        if (pts !== undefined) {
+                                            if (isProject) {
+                                                if (pts === 3) { rowBorder = "border-emerald-200"; rowBg="bg-emerald-50"; badgeClass = "bg-emerald-100 text-emerald-700 border-emerald-200"; textHighlight = "text-emerald-700"; }
+                                                else if (pts === 2) { rowBorder = "border-amber-200"; rowBg="bg-amber-50"; badgeClass = "bg-amber-100 text-amber-700 border-amber-200"; textHighlight = "text-amber-700"; }
+                                                else { rowBorder = "border-rose-200"; rowBg="bg-rose-50"; badgeClass = "bg-rose-100 text-rose-700 border-rose-200"; textHighlight = "text-rose-700"; }
+                                            } else {
+                                                if (pts === 1) { rowBorder = "border-emerald-200"; rowBg="bg-emerald-50"; badgeClass = "bg-emerald-100 text-emerald-700 border-emerald-200"; textHighlight = "text-emerald-700"; }
+                                                else { rowBorder = "border-rose-200"; rowBg="bg-rose-50"; badgeClass = "bg-rose-100 text-rose-700 border-rose-200"; textHighlight = "text-rose-700"; }
+                                            }
+                                        }
+
+                                        return (
+                                            <div key={i} className={`flex justify-between items-center p-4 rounded-xl border ${rowBorder} ${rowBg} break-inside-avoid`}>
+                                                <div className="flex gap-4 items-center overflow-hidden">
+                                                    <span className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-black flex-shrink-0 border ${badgeClass}`}>{i + 1}</span>
+                                                    <div className="overflow-hidden pr-4">
+                                                        <p className="text-sm font-bold text-slate-800 leading-snug line-clamp-2">{ind.indicator}</p>
+                                                        <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mt-1 bg-white px-2 py-0.5 rounded shadow-sm inline-block border border-slate-100">{ind.category}</p>
+                                                    </div>
+                                                </div>
+                                                <div className="text-right flex-shrink-0 ml-4 font-bold">
+                                                    <p className={`text-xs mb-0.5 ${textHighlight}`}>{ind.levels.find(l => l.points === pts)?.label || 'Sin Datos'}</p>
+                                                    <p className="text-[10px] text-slate-400 font-mono tracking-tighter">{pts || 0} / {maxPts} PTS</p>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                                
+                                <div className="mt-8 pt-4 border-t border-slate-200 flex justify-between items-center text-[8px] font-black text-slate-400 uppercase tracking-widest">
+                                    <p>Generado vía RubriCon Pro - Documento Curricular Oficial</p>
+                                    <p>Pág. 2 / 2</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                );
+            })()}
+        </div>
+    );
+}
